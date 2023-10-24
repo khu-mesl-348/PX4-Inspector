@@ -35,7 +35,6 @@ form_class = uic.loadUiType("./ui/PX4Inspector.ui")[0]
 download_class = uic.loadUiType("./ui/downloadProgress.ui")[0]
 ####################################################################
 
-# 해상도별 글자크기 강제 고정하는 함수
 def suppress_qt_warnings():
     environ["QT_DEVICE_PIXEL_RATIO"] = "0"
     environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
@@ -69,7 +68,6 @@ class WindowClass(QMainWindow, form_class) :
         print(os.getcwd())
 
         if path.exists('./fs/microsd/parameters_backup.bson'):
-            # parser_fd = os.open(self.dataman, os.O_BINARY)
             QMessageBox.about(self, '기존 데이터 발견', '이전 작업에서 불러왔던 데이터가 발견되었습니다. 해당 데이터를 로드합니다.')
         else :
             QMessageBox.about(self, '기존 데이터 없음', '검사 대상 PX4 드론에서 데이터를 불러온 적이 없습니다. 데이터를 새로 추출합니다. 해당 작업은 몇 분 정도 소요될 수 있습니다.')
@@ -90,7 +88,7 @@ class WindowClass(QMainWindow, form_class) :
     def ftpStartClicked(self):
         selected_item_number = selected_ftp_item_name.split('.')[0]
         # FTPInspectModule 함수로 분기
-        ftp_result = ftpInspectBranch(self.mavPort, selected_item_number)
+        ftp_result = ftpInspectBranch(self.mavPort, self.ftp, selected_item_number)
         # items = self.ftp_result_tableWidget.findItems(selected_item_number, Qt.MatchExactly) # PyQt5 용
         items = self.ftp_result_tableWidget.findItems(selected_item_number, Qt.MatchFlag.MatchExactly)
         item = items[0]
@@ -103,7 +101,7 @@ class WindowClass(QMainWindow, form_class) :
             temp_item = QTableWidgetItem()
             temp_item.setText("X")
             self.ftp_result_tableWidget.setItem(item.row(), 1, temp_item)
-            self.ftp_result_textEdit.setText('이 드론은 선택한 항목의 보안 요구사항을 충족시키지 않습니다.')
+            self.ftp_result_textEdit.setText(ftpInspectFailedResultMessage(selected_item_number))
         else :
             temp_item = QTableWidgetItem()
             temp_item.setText("보류")
@@ -115,14 +113,10 @@ class WindowClass(QMainWindow, form_class) :
         selected_mavlink_item_name = self.mavlink_listWidget.currentItem().text()
         self.mavlink_selected_textEdit.setText(selected_mavlink_item_name)
 
-    # TODO :
     def mavlinkStartClicked(self):
-        # print("Heartbeat from system (system %u component %u)" % (self.mavPort.mav.target_system, self.mavPort.mav.target_component))
-        # self.mavPort.mav.send()
-
         selected_item_number = selected_mavlink_item_name.split('.')[0]
         # MavlinkInspectModule 함수로 분기
-        mavlink_result, mavlink_result_msg = mavlinkInspectBranch(self.mavPort.mav, selected_item_number)
+        mavlink_result, mavlink_result_msg, mavlink_send_msg = mavlinkInspectBranch(self.mavPort.mav, selected_item_number)
 
         items = self.mavlink_result_tableWidget.findItems(selected_item_number, Qt.MatchFlag.MatchExactly)
         item = items[0]
@@ -135,16 +129,17 @@ class WindowClass(QMainWindow, form_class) :
             temp_item = QTableWidgetItem()
             temp_item.setText("X")
             self.mavlink_result_tableWidget.setItem(item.row(), 1, temp_item)
-            self.mavlink_result_textEdit.setText('이 드론은 선택한 항목의 보안 요구사항을 충족시키지 않습니다.')
+            self.mavlink_result_textEdit.setText(mavlinkInspectFailedResultMessage(selected_item_number))
         else:
             temp_item = QTableWidgetItem()
             temp_item.setText("보류")
             self.mavlink_result_tableWidget.setItem(item.row(), 1, temp_item)
             self.mavlink_result_textEdit.setText(mavlinkInspectHoldResultMessage(selected_item_number))
         self.mavlink_recvpacket_textEdit.setText(mavlink_result_msg)
+        self.mavlink_sendpacket_textEdit.setText(mavlink_send_msg)
 
     def initUI(self):
-        self.setWindowTitle('PX4Inspector')
+        self.setWindowTitle('PX4-Inspector')
         self.setWindowIcon(QIcon('drone.png'))
         self.setGeometry(300,300,300,200)
         self.show()
@@ -264,7 +259,7 @@ class WindowClass(QMainWindow, form_class) :
         QApplication.processEvents()
         self.dataRefreshButton.setEnabled(True)
         QMessageBox.about(self, '추출 완료',
-                          '데이터를 갱신하기 위해 프로그램을 종료한 후, 다시 실행해주십시오.')
+                          '데이터를 갱신하기 위해 프로그램을 종료한 후, PX4 드론과 PC의 USB 해제 후 재연결한 뒤, 프로그램을 다시 실행해주십시오.')
 
 def PX4Inspector():
     suppress_qt_warnings()
